@@ -1,0 +1,24 @@
+package com.example.toolecommerrce.dto;
+
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class AiAnalysisResult {
+
+    private List<String> pros;
+    private List<String> cons;
+    private String qualitySummary;
+    private BigDecimal suggestedPrice;
+    private String marketInsight;
+    private double competitiveScore;
+    private String recommendation;
+
+    /** Raw JSON string trả về từ Gemini (lưu vào DB) */
+    private String rawJson;
+}
