@@ -1,6 +1,6 @@
 package com.example.toolecommerrce.controller;
 
-import com.example.toolecommerrce.dto.ApiResponse;
+import com.example.toolecommerrce.dto.response.ApiResponse;
 import com.example.toolecommerrce.dto.response.DashboardStatsResponse;
 import com.example.toolecommerrce.dto.response.ProductResponse;
 import com.example.toolecommerrce.service.ProductService;

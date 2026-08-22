@@ -1,6 +1,6 @@
 package com.example.toolecommerrce.service.impl;
 
-import com.example.toolecommerrce.dto.AiAnalysisResult;
+import com.example.toolecommerrce.dto.response.AiAnalysisResultResponse;
 import com.example.toolecommerrce.dto.request.ScrapeRequest;
 import com.example.toolecommerrce.dto.response.ScrapeJobResponse;
 import com.example.toolecommerrce.entity.Product;
@@ -158,7 +158,7 @@ public class ScrapeOrchestratorServiceImpl implements ScrapeOrchestratorService 
 
     private Product enrichWithAi(Product product) {
         try {
-            AiAnalysisResult result = geminiAiService.analyzeProduct(product);
+            AiAnalysisResultResponse result = geminiAiService.analyzeProduct(product);
             product.setAiAnalysis(result.getRawJson());
             product.setAiSuggestedPrice(result.getSuggestedPrice());
             product.setAiSummary(result.getQualitySummary());
