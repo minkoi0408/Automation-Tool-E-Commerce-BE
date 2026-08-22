@@ -1,4 +1,4 @@
-package com.example.toolecommerrce.dto;
+package com.example.toolecommerrce.dto.response;
 
 import lombok.*;
 
@@ -9,7 +9,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AiAnalysisResult {
+public class AiAnalysisResultResponse {
 
     private List<String> pros;
     private List<String> cons;

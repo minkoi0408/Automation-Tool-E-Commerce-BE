@@ -1,6 +1,6 @@
 package com.example.toolecommerrce.controller;
 
-import com.example.toolecommerrce.dto.ApiResponse;
+import com.example.toolecommerrce.dto.response.ApiResponse;
 import com.example.toolecommerrce.dto.request.ScrapeRequest;
 import com.example.toolecommerrce.dto.response.ScrapeJobResponse;
 import com.example.toolecommerrce.service.ScrapeOrchestratorService;

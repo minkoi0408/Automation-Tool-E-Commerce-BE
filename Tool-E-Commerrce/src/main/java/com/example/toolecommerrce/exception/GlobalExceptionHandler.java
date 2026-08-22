@@ -1,6 +1,6 @@
 package com.example.toolecommerrce.exception;
 
-import com.example.toolecommerrce.dto.ApiResponse;
+import com.example.toolecommerrce.dto.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
