@@ -14,3 +14,26 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# Gemini AI config
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+
+# Telegram Bot config
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+    chat-id: ${TELEGRAM_CHAT_ID}
+    api-url: https://api.telegram.org/bot
+
+# Scraper config
+scraper:
+  shopee:
+    base-url: https://shopee.vn
+    search-url: https://shopee.vn/search?keyword=
+    headless: true
+    max-products-default: 10
+    implicit-wait-seconds: 10
+    page-load-timeout-seconds: 30
