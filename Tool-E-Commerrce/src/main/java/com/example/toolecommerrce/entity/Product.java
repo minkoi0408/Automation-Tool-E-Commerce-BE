@@ -45,6 +45,9 @@ public class Product {
     @Column(name = "shop_name")
     private String shopName;
 
+    @Column(name = "shop_sold_count")
+    private String shopSoldCount;
+
     @Column(name = "shop_location")
     private String shopLocation;
 

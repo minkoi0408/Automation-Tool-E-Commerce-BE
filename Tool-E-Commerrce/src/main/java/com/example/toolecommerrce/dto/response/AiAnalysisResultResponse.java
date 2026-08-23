@@ -11,6 +11,8 @@ import java.util.List;
 @AllArgsConstructor
 public class AiAnalysisResultResponse {
 
+    private String standardizedName;
+    private String translatedDescription;
     private List<String> pros;
     private List<String> cons;
     private String qualitySummary;

@@ -19,7 +19,7 @@ spring:
 gemini:
   api:
     key: ${GEMINI_API_KEY}
-    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent
+    url: https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent
 
 # Telegram Bot config
 telegram:
@@ -33,7 +33,9 @@ scraper:
   shopee:
     base-url: https://shopee.vn
     search-url: https://shopee.vn/search?keyword=
-    headless: true
+    headless: false
     max-products-default: 10
     implicit-wait-seconds: 10
     page-load-timeout-seconds: 30
+    username: ${SHOPEE_USERNAME:}
+    password: ${SHOPEE_PASSWORD:}
