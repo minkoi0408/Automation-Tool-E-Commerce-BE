@@ -15,4 +15,13 @@ public class ScrapeRequest {
 
     @Min(value = 1, message = "MAX_PRODUCTS_INVALID")
     private int maxProducts = 10;
+
+    /**
+     * Platform để scrape: SHOPEE, LAZADA, ALL (default ALL cho KEYWORD, auto-detect cho URL)
+     */
+    private Platform platform = Platform.ALL;
+
+    public enum Platform {
+        SHOPEE, LAZADA, ALL
+    }
 }
