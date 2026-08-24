@@ -19,7 +19,7 @@ spring:
 gemini:
   api:
     key: ${GEMINI_API_KEY}
-    url: https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent
 
 # Telegram Bot config
 telegram:

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,7 @@ public class GeminiAiServiceImpl implements GeminiAiService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent}")
+    @Value("${gemini.api.url:https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent}")
     private String geminiApiUrl;
 
     @Override
@@ -101,6 +102,9 @@ public class GeminiAiServiceImpl implements GeminiAiService {
         );
     }
 
+    private static final String GEMINI_ENDPOINT =
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+
     private String callGemini(String prompt) {
         Map<String, Object> requestBody = Map.of(
                 "contents", List.of(
@@ -110,52 +114,51 @@ public class GeminiAiServiceImpl implements GeminiAiService {
                         "temperature", 0.3,
                         "topK", 40,
                         "topP", 0.95,
-                        "maxOutputTokens", 4096,
-                        "responseMimeType", "application/json"
+                        "maxOutputTokens", 4096
                 )
         );
 
-        String[] modelEndpoints = new String[]{
-                geminiApiUrl,
-                "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent",
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
-        };
+        try {
+            String response = WebClient.create().post()
+                    .uri(GEMINI_ENDPOINT + "?key=" + apiKey)
+                    .header("Content-Type", "application/json")
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(30))
+                    .block();
 
-        for (String endpoint : modelEndpoints) {
-            if (endpoint == null || endpoint.isBlank()) continue;
-            try {
-                String fullUrl = endpoint + (endpoint.contains("?") ? "&" : "?") + "key=" + apiKey;
-                String response = WebClient.create().post()
-                        .uri(fullUrl)
-                        .header("Content-Type", "application/json")
-                        .bodyValue(requestBody)
-                        .retrieve()
-                        .bodyToMono(String.class)
-                        .block();
+            if (response != null && !response.isBlank()) {
+                JsonNode root = objectMapper.readTree(response);
+                // Xử lý error JSON từ Google (403/429/503)
+                if (root.has("error")) {
+                    String errMsg = root.path("error").path("message").asText();
+                    log.warn("[Gemini] API returned error: {}", errMsg);
+                    return "{}";
+                }
+                JsonNode candidates = root.path("candidates");
+                if (candidates.isArray() && candidates.size() > 0) {
+                    String text = candidates.get(0)
+                            .path("content")
+                            .path("parts").get(0)
+                            .path("text")
+                            .asText("");
 
-                if (response != null && !response.isBlank()) {
-                    JsonNode root = objectMapper.readTree(response);
-                    JsonNode candidates = root.path("candidates");
-                    if (candidates.isArray() && candidates.size() > 0) {
-                        String text = candidates.get(0)
-                                .path("content")
-                                .path("parts").get(0)
-                                .path("text")
-                                .asText("");
-
-                        if (!text.isBlank()) {
-                            log.info("[Gemini] Analysis successful, length: {} chars", text.length());
-                            return text;
+                    if (!text.isBlank()) {
+                        // Strip markdown code fences if Gemini wraps JSON in ```json ... ```
+                        if (text.startsWith("```")) {
+                            text = text.replaceAll("^```(?:json)?\\s*", "").replaceAll("\\s*```$", "").trim();
                         }
+                        log.info("[Gemini] ✅ Analysis successful, length: {} chars", text.length());
+                        return text;
                     }
                 }
-            } catch (Exception e) {
-                log.warn("[Gemini] Attempt failed for endpoint '{}': {}", endpoint, e.getMessage());
             }
+        } catch (Exception e) {
+            log.warn("[Gemini] API Call error: {}", e.getMessage());
         }
 
-        log.warn("[Gemini] All Gemini endpoints unreachable, triggering smart pricing fallback");
+        log.warn("[Gemini] Gemini endpoint unreachable, triggering smart pricing fallback");
         return "{}";
     }
 
@@ -164,7 +167,6 @@ public class GeminiAiServiceImpl implements GeminiAiService {
             return generateFallbackAnalysis(product);
         }
 
-        // Xử lý nếu Gemini trả về markdown code block
         String cleanJson = rawJson.trim();
         if (cleanJson.startsWith("```json")) cleanJson = cleanJson.substring(7);
         if (cleanJson.startsWith("```")) cleanJson = cleanJson.substring(3);
@@ -240,7 +242,6 @@ public class GeminiAiServiceImpl implements GeminiAiService {
     private BigDecimal calculateSuggestedPrice(Product product) {
         if (product.getPrice() != null) {
             long priceVal = product.getPrice().longValue();
-            // Đề xuất giá cạnh tranh giảm ~5-7% để chiếm ưu thế bán hàng
             long suggestedVal = Math.round((priceVal * 0.94) / 1000.0) * 1000;
             if (suggestedVal <= 0) suggestedVal = priceVal;
             return BigDecimal.valueOf(suggestedVal);
@@ -248,4 +249,3 @@ public class GeminiAiServiceImpl implements GeminiAiService {
         return BigDecimal.valueOf(55000);
     }
 }
-
