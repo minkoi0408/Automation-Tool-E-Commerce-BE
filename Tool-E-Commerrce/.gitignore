@@ -34,3 +34,8 @@ build/
 
 ### Environment Variables ###
 .env
+
+### Temporary test files ###
+*.html
+*.bat
+
