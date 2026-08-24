@@ -1,0 +1,41 @@
+spring:
+  application:
+    name: Tool-E-Commerrce
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# Gemini AI config
+gemini:
+  api:
+    key: ${GEMINI_API_KEY}
+    url: https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent
+
+# Telegram Bot config
+telegram:
+  bot:
+    token: ${TELEGRAM_BOT_TOKEN}
+    chat-id: ${TELEGRAM_CHAT_ID}
+    api-url: https://api.telegram.org/bot
+
+# Scraper config
+scraper:
+  shopee:
+    base-url: https://shopee.vn
+    search-url: https://shopee.vn/search?keyword=
+    headless: false
+    max-products-default: 10
+    implicit-wait-seconds: 10
+    page-load-timeout-seconds: 30
+    username: ${SHOPEE_USERNAME:}
+    password: ${SHOPEE_PASSWORD:}
