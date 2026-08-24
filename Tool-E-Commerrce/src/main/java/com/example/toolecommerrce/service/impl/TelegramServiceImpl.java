@@ -34,7 +34,7 @@ public class TelegramServiceImpl implements TelegramService {
 
         // Gửi ảnh nếu có
         if (product.getImageUrl() != null && !product.getImageUrl().isBlank()) {
-            sendPhoto(product.getImageUrl(), "📦 " + product.getName());
+            sendPhoto(product.getImageUrl(), "📦 " + escape(product.getName()));
         }
     }
 
@@ -206,6 +206,11 @@ public class TelegramServiceImpl implements TelegramService {
 
     private String escape(String text) {
         if (text == null) return "";
+        try {
+            if (text.contains("%")) {
+                text = java.net.URLDecoder.decode(text, java.nio.charset.StandardCharsets.UTF_8);
+            }
+        } catch (Exception ignored) {}
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 

@@ -24,7 +24,6 @@ public class ScrapeOrchestratorServiceImpl implements ScrapeOrchestratorService 
     private final ScrapeAsyncProcessor scrapeAsyncProcessor; // ✅ inject bean khác → @Async hoạt động đúng
 
     @Override
-    @Transactional
     public UUID startScrapeJob(ScrapeRequest request) {
         ScrapeJob job = ScrapeJob.builder()
                 .inputType(request.getInputType())
@@ -33,21 +32,33 @@ public class ScrapeOrchestratorServiceImpl implements ScrapeOrchestratorService 
                 .processedProducts(0)
                 .failedProducts(0)
                 .build();
-        job = scrapeJobRepository.save(job);
+        job = scrapeJobRepository.saveAndFlush(job);
 
         log.info("[Orchestrator] Created ScrapeJob {} for input: {}", job.getId(), request.getInputValue());
 
-        // Gọi qua bean khác → Spring proxy intercept được → @Async hoạt động
-        scrapeAsyncProcessor.processJobAsync(job, request);
+        // Gọi async bằng jobId để tránh race condition & detached entity
+        scrapeAsyncProcessor.processJobAsync(job.getId(), request);
 
         return job.getId();
     }
 
     @Override
-    @Transactional(readOnly = true)
     public List<ScrapeJobResponse> getAllJobs() {
-        return scrapeJobRepository.findAllByOrderByCreatedAtDesc()
-                .stream()
+        List<ScrapeJob> jobs = scrapeJobRepository.findAllByOrderByCreatedAtDesc();
+        java.time.LocalDateTime cutoff = java.time.LocalDateTime.now().minusMinutes(5);
+
+        // Tự động dọn dẹp các job bị treo (RUNNING/PENDING > 5 phút)
+        for (ScrapeJob j : jobs) {
+            if ((j.getStatus() == ScrapeJob.JobStatus.RUNNING || j.getStatus() == ScrapeJob.JobStatus.PENDING)
+                    && j.getCreatedAt() != null && j.getCreatedAt().isBefore(cutoff)) {
+                j.setStatus(ScrapeJob.JobStatus.FAILED);
+                j.setErrorMessage("Quá thời gian thực thi (Timeout)");
+                j.setCompletedAt(java.time.LocalDateTime.now());
+                scrapeJobRepository.save(j);
+            }
+        }
+
+        return jobs.stream()
                 .map(this::toScrapeJobResponse)
                 .toList();
     }

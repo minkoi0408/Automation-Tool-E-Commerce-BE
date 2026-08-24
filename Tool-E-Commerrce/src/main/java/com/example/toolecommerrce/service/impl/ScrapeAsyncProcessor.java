@@ -35,7 +35,13 @@ public class ScrapeAsyncProcessor {
     private final TelegramService telegramService;
 
     @Async
-    public void processJobAsync(ScrapeJob job, ScrapeRequest request) {
+    public void processJobAsync(java.util.UUID jobId, ScrapeRequest request) {
+        ScrapeJob job = scrapeJobRepository.findById(jobId).orElse(null);
+        if (job == null) {
+            log.error("[Async] ScrapeJob {} not found in database", jobId);
+            return;
+        }
+
         try {
             job.setStatus(ScrapeJob.JobStatus.RUNNING);
             scrapeJobRepository.save(job);
@@ -70,7 +76,7 @@ public class ScrapeAsyncProcessor {
             );
 
         } catch (Exception e) {
-            log.error("[Async] Job {} failed: {}", job.getId(), e.getMessage());
+            log.error("[Async] Job {} failed: {}", jobId, e.getMessage());
             job.setStatus(ScrapeJob.JobStatus.FAILED);
             job.setErrorMessage(e.getMessage());
             job.setCompletedAt(LocalDateTime.now());

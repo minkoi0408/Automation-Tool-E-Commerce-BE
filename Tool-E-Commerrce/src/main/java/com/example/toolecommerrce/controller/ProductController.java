@@ -25,6 +25,7 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Page<ProductResponse>>> getProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) com.example.toolecommerrce.entity.Product.ProductSource source,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) Double minRating,
@@ -34,7 +35,7 @@ public class ProductController {
         return ResponseEntity.ok(ApiResponse.<Page<ProductResponse>>builder()
                 .success(true)
                 .message("Thành công")
-                .data(productService.getProducts(keyword, category, minPrice, maxPrice, minRating, page, size))
+                .data(productService.getProducts(keyword, category, source, minPrice, maxPrice, minRating, page, size))
                 .build());
     }
 
@@ -81,6 +82,8 @@ public class ProductController {
     ) {
         if ("excel".equalsIgnoreCase(format)) {
             productService.exportToExcel(response);
+        } else if ("json".equalsIgnoreCase(format)) {
+            productService.exportToJson(response);
         } else {
             productService.exportToCsv(response);
         }

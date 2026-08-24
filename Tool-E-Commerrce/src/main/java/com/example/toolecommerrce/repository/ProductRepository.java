@@ -19,6 +19,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
             SELECT p FROM Product p
             WHERE (CAST(:keyword AS string) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:keyword AS string), '%')))
             AND (CAST(:category AS string) IS NULL OR p.category = CAST(:category AS string))
+            AND (:source IS NULL OR p.source = :source)
             AND (:minPrice IS NULL OR p.price >= :minPrice)
             AND (:maxPrice IS NULL OR p.price <= :maxPrice)
             AND (:minRating IS NULL OR p.rating >= :minRating)
@@ -28,6 +29,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     Page<Product> searchProducts(
             @Param("keyword") String keyword,
             @Param("category") String category,
+            @Param("source") Product.ProductSource source,
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice,
             @Param("minRating") Double minRating,
