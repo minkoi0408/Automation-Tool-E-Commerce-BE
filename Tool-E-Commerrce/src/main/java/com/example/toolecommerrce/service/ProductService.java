@@ -14,6 +14,7 @@ public interface ProductService {
     Page<ProductResponse> getProducts(
             String keyword,
             String category,
+            com.example.toolecommerrce.entity.Product.ProductSource source,
             BigDecimal minPrice,
             BigDecimal maxPrice,
             Double minRating,
@@ -30,6 +31,8 @@ public interface ProductService {
     void exportToCsv(HttpServletResponse response);
 
     void exportToExcel(HttpServletResponse response);
+
+    void exportToJson(HttpServletResponse response);
 
     DashboardStatsResponse getDashboardStats();
 }

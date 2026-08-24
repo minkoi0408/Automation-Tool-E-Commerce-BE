@@ -34,15 +34,17 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final ScrapeJobRepository scrapeJobRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponse> getProducts(String keyword, String category,
+                                             Product.ProductSource source,
                                              BigDecimal minPrice, BigDecimal maxPrice,
                                              Double minRating, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         return productRepository
-                .searchProducts(keyword, category, minPrice, maxPrice, minRating, pageable)
+                .searchProducts(keyword, category, source, minPrice, maxPrice, minRating, pageable)
                 .map(this::toProductResponse);
     }
 
@@ -157,12 +159,27 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    public void exportToJson(HttpServletResponse response) {
+        response.setContentType("application/json; charset=UTF-8");
+        response.setHeader("Content-Disposition", "attachment; filename=\"products.json\"");
+
+        List<Product> products = productRepository.findAll();
+        List<ProductResponse> responses = products.stream().map(this::toProductResponse).toList();
+        try {
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(response.getOutputStream(), responses);
+        } catch (IOException e) {
+            log.error("Error exporting JSON: {}", e.getMessage());
+            throw new AppException(ErrorCode.EXPORT_FAILED);
+        }
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public DashboardStatsResponse getDashboardStats() {
         return DashboardStatsResponse.builder()
                 .totalProducts(productRepository.count())
                 .completedProducts(productRepository.countByStatus(Product.ProductStatus.COMPLETED))
-                .failedProducts(productRepository.countByStatus(Product.ProductStatus.FAILED))
+                .failedProducts(scrapeJobRepository.countByStatus(com.example.toolecommerrce.entity.ScrapeJob.JobStatus.FAILED))
                 .totalJobs(scrapeJobRepository.count())
                 .build();
     }

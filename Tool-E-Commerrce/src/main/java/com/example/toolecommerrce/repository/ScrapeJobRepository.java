@@ -13,4 +13,6 @@ public interface ScrapeJobRepository extends JpaRepository<ScrapeJob, UUID> {
     List<ScrapeJob> findAllByOrderByCreatedAtDesc();
 
     List<ScrapeJob> findByStatus(ScrapeJob.JobStatus status);
+
+    long countByStatus(ScrapeJob.JobStatus status);
 }

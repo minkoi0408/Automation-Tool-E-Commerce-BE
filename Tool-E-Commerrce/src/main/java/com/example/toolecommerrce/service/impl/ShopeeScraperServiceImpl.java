@@ -7,6 +7,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +31,8 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
     private static final String USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                     + "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36";
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${scraper.shopee.max-products-default:10}")
     private int maxProductsDefault;
@@ -149,7 +153,7 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
                     }
 
                     String shopName = extractRealShopName(realProductName, cleanUrl);
-                    String imageUrl = extractImageFromItem(item);
+                    String imageUrl = extractImageFromItem(item, realProductName);
 
                     CardMetadata meta = new CardMetadata(
                             realProductName,
@@ -165,8 +169,8 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
                             cleanUrl
                     );
                     searchMetadataCache.put(cleanUrl, meta);
-                    log.info("[Shopee] ✅ Cached: Name='{}', Price={}, Shop='{}', URL={}",
-                            meta.name, meta.price, meta.shopName, cleanUrl);
+                    log.info("[Shopee] ✅ Cached: Name='{}', Price={}, Shop='{}', Image='{}', URL={}",
+                            meta.name, meta.price, meta.shopName, meta.imageUrl, cleanUrl);
                 }
             }
         }
@@ -202,8 +206,12 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
 
         CardMetadata cached = searchMetadataCache.get(cleanUrl);
         if (cached != null && cached.name() != null && !cached.name().isBlank()) {
-            log.info("[Shopee] ✅ Trả về sản phẩm thật: name='{}', price={}, shop='{}'",
-                    cached.name(), cached.price(), cached.shopName());
+            String imageUrl = cached.imageUrl();
+            if (imageUrl == null || imageUrl.isBlank()) {
+                imageUrl = fetchShopeeImage(cached.name());
+            }
+            log.info("[Shopee] ✅ Trả về sản phẩm thật: name='{}', price={}, shop='{}', image='{}'",
+                    cached.name(), cached.price(), cached.shopName(), imageUrl);
             return Product.builder()
                     .name(cached.name())
                     .price(cached.price())
@@ -213,7 +221,7 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
                     .reviewCount(cached.reviewCount())
                     .soldCount(cached.soldCount())
                     .shopName(cached.shopName())
-                    .imageUrl(cached.imageUrl())
+                    .imageUrl(imageUrl)
                     .description(cached.description())
                     .productUrl(url)
                     .source(Product.ProductSource.SHOPEE)
@@ -223,6 +231,7 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
 
         String nameFromUrl = extractNameFromSlug(cleanUrl);
         BigDecimal price = BigDecimal.valueOf(149000);
+        String imageUrl = fetchShopeeImage(nameFromUrl);
         return Product.builder()
                 .name(nameFromUrl)
                 .price(price)
@@ -232,6 +241,7 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
                 .reviewCount(350L)
                 .soldCount(1500L)
                 .shopName("Shopee Mall Chính Hãng")
+                .imageUrl(imageUrl)
                 .description("Sản phẩm " + nameFromUrl + " chính hãng chất lượng cao trên Shopee.")
                 .productUrl(url)
                 .source(Product.ProductSource.SHOPEE)
@@ -246,6 +256,10 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
     private String extractRealProductName(Element item, String url, String keyword) {
         Element h = item.selectFirst("h3.title span, h3.title, h3, h2, .title");
         String raw = h != null ? h.text() : "";
+
+        try {
+            raw = URLDecoder.decode(raw, StandardCharsets.UTF_8);
+        } catch (Exception ignored) {}
 
         raw = raw.replaceAll("https?://[^\\s]+", "")
                 .replaceAll("(?:shopee\\.vn|Shopee Việt Nam|Shopee)[^a-zA-Z0-9À-ỹ]*", "")
@@ -268,9 +282,12 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
 
     private String extractNameFromSlug(String url) {
         try {
-            String path = url.replace("https://shopee.vn/", "").split("\\?")[0];
+            String path = url.replace("https://shopee.vn/", "").replace("http://shopee.vn/", "").split("\\?")[0];
             path = path.replaceAll("-i\\.\\d+\\.\\d+", "");
-            path = path.replace("-", " ").trim();
+            try {
+                path = URLDecoder.decode(path, StandardCharsets.UTF_8);
+            } catch (Exception ignored) {}
+            path = path.replace("-", " ").replace("_", " ").replaceAll("\\s+", " ").trim();
             if (!path.isEmpty() && path.length() > 5) {
                 return capitalize(path);
             }
@@ -311,13 +328,61 @@ public class ShopeeScraperServiceImpl implements ShopeeScraperService {
         return BigDecimal.valueOf(prices[idx]);
     }
 
-    private String extractImageFromItem(Element item) {
+    private String extractImageFromItem(Element item, String productName) {
         Element imgEl = item.selectFirst("img.s-img, img.thumb, .thmb img, img");
         if (imgEl != null) {
             String src = imgEl.attr("src");
             if (src.startsWith("http") && !src.contains("favicon") && !src.contains("32x32")) {
                 return src;
             }
+        }
+        return fetchShopeeImage(productName);
+    }
+
+    public String fetchShopeeImage(String title) {
+        if (title == null || title.isBlank()) return null;
+        try {
+            // Làm sạch title: bỏ các ký tự đặc biệt như [ ], %, quotes để Bing tìm chính xác ảnh sản phẩm
+            String cleanTitle = title.replaceAll("[\\[\\]%'\"\\-_|/]", " ")
+                    .replaceAll("(?i)(?:chính hãng|fullbox|giá rẻ|cao cấp|unisex|nam nữ)", " ")
+                    .replaceAll("\\s+", " ")
+                    .trim();
+
+            if (cleanTitle.length() > 60) {
+                cleanTitle = cleanTitle.substring(0, 60).trim();
+            }
+
+            String encoded = URLEncoder.encode(cleanTitle, StandardCharsets.UTF_8);
+            String url = "https://www.bing.com/images/search?q=" + encoded + "&first=1&scenario=ImageBasicHover";
+            Document doc = Jsoup.connect(url)
+                    .userAgent(USER_AGENT)
+                    .header("Accept-Language", "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7")
+                    .timeout(6000)
+                    .get();
+
+            Elements imgs = doc.select("a.iusc");
+            for (Element el : imgs) {
+                String m = el.attr("m");
+                if (!m.isEmpty()) {
+                    JsonNode node = objectMapper.readTree(m);
+                    String murl = node.path("murl").asText("");
+                    if (murl.startsWith("http") && !murl.contains("vecteezy") && !murl.contains("freepik") && !murl.contains("dreamstime")) {
+                        return murl;
+                    }
+                }
+            }
+
+            // Fallback: nếu murl trống, lấy turl (thumbnail)
+            for (Element el : imgs) {
+                String m = el.attr("m");
+                if (!m.isEmpty()) {
+                    JsonNode node = objectMapper.readTree(m);
+                    String turl = node.path("turl").asText("");
+                    if (turl.startsWith("http")) return turl;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("[Shopee] Failed to fetch accurate image for '{}': {}", title, e.getMessage());
         }
         return null;
     }
